@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BABFT Circle Planner</title>
+<style>
+:root{
+  --bg:#080b12;
+  --panel:#121724;
+  --panel2:#0d111b;
+  --line:#2d3448;
+  --text:#ffffff;
+  --muted:#9aa4bd;
+  --blue:#2299ee;
+  --blue2:#176fc0;
+  --hover:#00ffae;
+  --select:#ffb703;
+  --radius:#ffd166;
+  --diameter:#8b5cf6;
+  --angle:#ff7b7b;
+}
+*{box-sizing:border-box;user-select:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+.app{height:100vh;display:grid;grid-template-columns:320px 1fr}
+.panel{background:linear-gradient(180deg,#171b28,#10131d);border-right:1px solid var(--line);padding:18px;box-shadow:8px 0 40px rgba(0,0,0,.25);z-index:2}
+.title{font-size:22px;font-weight:900;letter-spacing:.2px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+.field{margin-bottom:16px}
+.field span{display:block;color:#aeb7cf;font-size:12px;margin-bottom:7px;letter-spacing:.2px}
+.num{display:grid;grid-template-columns:1fr 34px;border:1px solid #333b52;background:#0b0e16;border-radius:12px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+.num input{background:transparent;border:0;color:white;font-size:18px;padding:12px;outline:none;user-select:text}
+.step{display:grid;grid-template-rows:1fr 1fr;border-left:1px solid #333b52}
+.step button{background:#151a27;color:#dbe6ff;border:0;cursor:pointer;font-size:10px;line-height:1;transition:.12s}
+.step button:hover{background:#232b40;color:white}
+.cards{display:grid;gap:10px;margin-top:20px}
+.card{background:#111827;border:1px solid #2b344b;border-radius:14px;padding:12px;box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.card small{color:#8f9bb5;display:block;margin-bottom:5px}.card b{font-size:20px;letter-spacing:.2px}
+.legend{margin-top:18px;display:grid;gap:8px;font-size:12px;color:#b9c3dc}.legend-row{display:flex;align-items:center;gap:8px}.swatch{width:12px;height:12px;border-radius:4px}
+.canvas-wrap{position:relative;overflow:hidden;background:radial-gradient(circle at center,#101522 0,#070a10 70%)}
+canvas{width:100%;height:100%;display:block}
+
+.build-btn{position:fixed;right:24px;bottom:24px;z-index:10;border:1px solid rgba(255,255,255,.18);background:linear-gradient(180deg,#1f8fff,#1464b0);color:white;font-weight:900;font-size:14px;letter-spacing:.2px;padding:14px 18px;border-radius:16px;cursor:pointer;box-shadow:0 16px 35px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.06) inset;transition:transform .12s,filter .12s}
+.build-btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.build-btn:active{transform:translateY(0)}
+.modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;padding:28px;backdrop-filter:blur(5px)}
+.modal-backdrop.open{display:flex}
+.build-modal{width:80vw;height:80vh;max-width:1280px;max-height:860px;background:linear-gradient(180deg,#171d2c,#0d111b);border:1px solid rgba(255,255,255,.14);border-radius:24px;box-shadow:0 35px 100px rgba(0,0,0,.55);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.03)}
+.modal-title{font-size:22px;font-weight:950;letter-spacing:.2px}
+.modal-close{border:1px solid rgba(255,255,255,.16);background:#111827;color:white;border-radius:12px;width:40px;height:40px;font-size:24px;line-height:1;cursor:pointer}
+.modal-close:hover{background:#20293c}
+.modal-body{padding:18px;overflow:hidden;color:#dbe6ff;display:grid;grid-template-rows:1fr auto;gap:14px}
+.tut-stage{position:relative;border:1px solid rgba(255,255,255,.13);border-radius:18px;overflow:hidden;background:radial-gradient(circle at center,#101522 0,#070a10 72%);min-height:0}
+#tutorialCanvas{width:100%;height:100%;display:block}
+.slide-caption{position:absolute;left:18px;top:18px;background:rgba(8,11,18,.88);border:1px solid rgba(255,255,255,.13);border-radius:14px;padding:12px 14px;max-width:360px;box-shadow:0 12px 35px rgba(0,0,0,.25)}
+.slide-caption h2{margin:0 0 5px;font-size:20px}
+.slide-caption p{color:#aeb7cf;line-height:1.4;margin:0;font-size:13px}
+.tut-controls{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.tut-nav{display:flex;gap:10px}
+.tut-btn{border:1px solid rgba(255,255,255,.16);background:#141b2a;color:white;border-radius:13px;padding:11px 16px;font-weight:850;cursor:pointer}
+.tut-btn:hover:not(:disabled){background:#20293c}
+.tut-btn:disabled{opacity:.42;cursor:not-allowed}
+.slide-count{color:#aeb7cf;font-weight:800}
+body.modal-open{overflow:hidden}
+body.modal-open .app,body.modal-open .build-btn{pointer-events:none}
+body.modal-open .modal-backdrop{pointer-events:auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <div class="title">BABFT Circle Planner</div>
+    <div class="sub">Tangent-based section sizing</div>
+
+    <div class="field">
+      <span>Angle / Rotation</span>
+      <div class="num">
+        <input id="angle" value="15.00" inputmode="decimal" min="0.01" max="90" step="0.01" />
+        <div class="step"><button data-bump="angle:0.01">▲</button><button data-bump="angle:-0.01">▼</button></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <span>Distance Between Outer Edges</span>
+      <div class="num">
+        <input id="diameter" value="15.19" inputmode="decimal" />
+        <div class="step"><button data-bump="diameter:0.01">▲</button><button data-bump="diameter:-0.01">▼</button></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <span>Width Of Each Section</span>
+      <div class="num">
+        <input id="width" value="2.00" inputmode="decimal" />
+        <div class="step"><button data-bump="width:0.01">▲</button><button data-bump="width:-0.01">▼</button></div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card"><small>Sections</small><b id="sections">24.00</b></div>
+      <div class="card"><small>Radius</small><b id="radius">7.60</b></div>
+      <div class="card"><small>Selected Section</small><b id="selected">None</b></div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-row"><i class="swatch" style="background:var(--diameter)"></i>Diameter line</div>
+      <div class="legend-row"><i class="swatch" style="background:var(--radius)"></i>Radius line</div>
+      <div class="legend-row"><i class="swatch" style="background:var(--hover)"></i>Section width</div>
+      <div class="legend-row"><i class="swatch" style="background:var(--angle)"></i>Angle / rotation</div>
+    </div>
+
+  </aside>
+
+  <main class="canvas-wrap"><canvas id="canvas"></canvas></main>
+</div>
+
+<button id="buildTutBtn" class="build-btn" type="button">How To Build In Game</button>
+
+<div id="buildModalBackdrop" class="modal-backdrop" aria-hidden="true">
+  <section class="build-modal" role="dialog" aria-modal="true" aria-labelledby="buildModalTitle">
+    <header class="modal-head">
+      <div class="modal-title" id="buildModalTitle">How To Build In Game</div>
+      <button id="buildModalClose" class="modal-close" type="button" aria-label="Close tutorial">×</button>
+    </header>
+    <div class="modal-body">
+      <div class="tut-stage">
+        <canvas id="tutorialCanvas"></canvas>
+        <div class="slide-caption">
+          <h2 id="slideTitle">STEP ONE</h2>
+          <p id="slideText">Place a block and scale it to the sizes shown.</p>
+        </div>
+      </div>
+      <div class="tut-controls">
+        <div class="tut-nav">
+          <button id="slidePrev" class="tut-btn" type="button">◀ Previous</button>
+          <button id="slideNext" class="tut-btn" type="button">Next ▶</button>
+        </div>
+        <div id="slideCount" class="slide-count">1 / 1</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const angleInput = document.getElementById('angle');
+const diameterInput = document.getElementById('diameter');
+const widthInput = document.getElementById('width');
+const sectionsOut = document.getElementById('sections');
+const radiusOut = document.getElementById('radius');
+const selectedOut = document.getElementById('selected');
+
+const buildTutBtn = document.getElementById('buildTutBtn');
+const buildModalBackdrop = document.getElementById('buildModalBackdrop');
+const buildModalClose = document.getElementById('buildModalClose');
+const tutorialCanvas = document.getElementById('tutorialCanvas');
+const tctx = tutorialCanvas.getContext('2d');
+const slideTitle = document.getElementById('slideTitle');
+const slideText = document.getElementById('slideText');
+const slidePrev = document.getElementById('slidePrev');
+const slideNext = document.getElementById('slideNext');
+const slideCount = document.getElementById('slideCount');
+let currentSlide = 0;
+
+// One shared visual size for every tutorial step, including STEP SEVEN.
+// This keeps the blocks visually consistent from start to finish.
+const TUTORIAL_BLOCK_WIDTH = 50;
+const TUTORIAL_BLOCK_HEIGHT = 360;
+
+// Keep STEP SEVEN and STEP EIGHT visually locked to the first/default tutorial example.
+// The planner numbers can still update, but these tutorial drawings do not move/change.
+const TUTORIAL_STATIC_ANGLE = parseFloat(angleInput.value) || 15;
+
+const tutorialSlides = [
+  {
+    title: 'STEP ONE',
+    text: 'Place a block and scale it to the sizes shown.',
+    draw: drawFootprintSlide
+  },
+  {
+    title: 'STEP TWO',
+    text: 'Clone the block.',
+    draw: drawCloneSlide
+  },
+  {
+    title: 'STEP THREE',
+    text: 'Move the cloned block into the original blocks position.',
+    draw: drawMoveCloneSlide
+  },
+  {
+    title: 'STEP FOUR',
+    text: 'Scale the rectangles to the desired size thickness.',
+    draw: drawScaleThicknessSlide
+  },
+  {
+    title: 'STEP FIVE',
+    text: 'Select both sections and clone them.',
+    draw: drawCloneBothSectionsSlide
+  },
+  {
+    title: 'STEP SIX',
+    text: 'Move the cloned blocks into the original blocks positions.',
+    draw: drawMoveClonedSectionsSlide
+  },
+  {
+    title: 'STEP SEVEN',
+    text: 'Select the two parts you just cloned and rotate them by the angle.',
+    draw: drawRotateClonedSectionsSlide
+  },
+  {
+    title: 'STEP EIGHT',
+    text: 'Keep repeating step Five > Six > Seven until you have a full circle.',
+    draw: drawCompleteCircleSlide
+  }
+];
+
+function resizeTutorialCanvas(){
+  if(!tutorialCanvas) return;
+  const rect = tutorialCanvas.getBoundingClientRect();
+  tutorialCanvas.width = Math.max(1, Math.round(rect.width * devicePixelRatio));
+  tutorialCanvas.height = Math.max(1, Math.round(rect.height * devicePixelRatio));
+  tctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  renderTutorialSlide();
+}
+
+function renderTutorialSlide(){
+  if(!tutorialCanvas || !tutorialSlides.length) return;
+  currentSlide = clamp(currentSlide, 0, tutorialSlides.length - 1);
+  const slide = tutorialSlides[currentSlide];
+  slideTitle.textContent = slide.title;
+  slideText.textContent = slide.text;
+  slideCount.textContent = (currentSlide + 1) + ' / ' + tutorialSlides.length;
+  slidePrev.disabled = currentSlide === 0;
+  slideNext.disabled = currentSlide === tutorialSlides.length - 1;
+  slide.draw();
+}
+
+function tutLine(x1,y1,x2,y2,c=COLORS.axis,w=1){
+  tctx.strokeStyle = c;
+  tctx.lineWidth = w;
+  tctx.beginPath();
+  tctx.moveTo(x1,y1);
+  tctx.lineTo(x2,y2);
+  tctx.stroke();
+}
+
+function tutArrowHead(x,y,a,c){
+  const s = 8;
+  tctx.beginPath();
+  tctx.moveTo(x,y);
+  tctx.lineTo(x - Math.cos(a - .45) * s, y - Math.sin(a - .45) * s);
+  tctx.lineTo(x - Math.cos(a + .45) * s, y - Math.sin(a + .45) * s);
+  tctx.closePath();
+  tctx.fillStyle = c;
+  tctx.fill();
+}
+
+function tutArrowLine(x1,y1,x2,y2,color){
+  tutLine(x1,y1,x2,y2,color,2.5);
+  const a = Math.atan2(y2-y1, x2-x1);
+  tutArrowHead(x1,y1,a+Math.PI,color);
+  tutArrowHead(x2,y2,a,color);
+}
+
+function tutRoundRect(x,y,w,h,r){
+  tctx.beginPath();
+  tctx.moveTo(x+r,y);
+  tctx.arcTo(x+w,y,x+w,y+h,r);
+  tctx.arcTo(x+w,y+h,x,y+h,r);
+  tctx.arcTo(x,y+h,x,y,r);
+  tctx.arcTo(x,y,x+w,y,r);
+  tctx.closePath();
+}
+
+function tutLabel(title,value,x,y,color=COLORS.radius,w=200){
+  tctx.fillStyle = COLORS.labelBg;
+  tctx.strokeStyle = COLORS.labelStroke;
+  tctx.lineWidth = 1;
+  tutRoundRect(x,y,w,50,10);
+  tctx.fill();
+  tctx.stroke();
+  tctx.fillStyle = COLORS.muted;
+  tctx.font = '12px Arial';
+  tctx.fillText(title, x+12, y+18);
+  tctx.fillStyle = color;
+  tctx.font = 'bold 18px Arial';
+  tctx.fillText(value, x+12, y+40);
+}
+
+function drawTutorialGrid(){
+  const W = tutorialCanvas.clientWidth;
+  const H = tutorialCanvas.clientHeight;
+  tctx.clearRect(0,0,W,H);
+  for(let x=0; x<W; x+=28) tutLine(x,0,x,H,COLORS.grid,1);
+  for(let y=0; y<H; y+=28) tutLine(0,y,W,y,COLORS.grid,1);
+}
+
+function getTutorialBlockLayout(blockCount=1){
+  const W = tutorialCanvas.clientWidth;
+  const H = tutorialCanvas.clientHeight;
+
+  const pad = 24;
+  const captionSafeTop = 112;
+  const labelH = 50;
+  const widthLabelW = 210;
+  const diameterLabelW = 190;
+  const topMeasureGap = 26;
+  const topLabelGap = 8;
+  const sideMeasureGap = 38;
+  const sideLabelGap = 12;
+  const gap = 22;
+
+  const availableTop = captionSafeTop + labelH + topLabelGap + topMeasureGap;
+  const availableBottom = H - pad;
+  const maxRectH = Math.max(120, availableBottom - availableTop);
+  const rectW = TUTORIAL_BLOCK_WIDTH;
+  const rectH = Math.min(maxRectH, TUTORIAL_BLOCK_HEIGHT);
+
+  // Keep the BLUE block centered in the tutorial window on every step.
+  // On STEP TWO the green clone is positioned to the left of this centered blue block.
+  const blueX = W / 2 - rectW / 2;
+  const groupX = blockCount === 2 ? blueX - rectW - gap : blueX;
+
+  return {
+    pad,
+    labelH,
+    widthLabelW,
+    diameterLabelW,
+    topMeasureGap,
+    topLabelGap,
+    sideMeasureGap,
+    sideLabelGap,
+    gap,
+    rectW,
+    rectH,
+    groupX,
+    blueX,
+    ry: availableTop,
+    W,
+    H
+  };
+}
+
+function drawSharpBlock(rx, ry, rectW, rectH, color){
+  tctx.fillStyle = color;
+  tctx.strokeStyle = 'rgba(255,255,255,.85)';
+  tctx.lineWidth = 2;
+  tctx.beginPath();
+  tctx.rect(rx, ry, rectW, rectH);
+  tctx.fill();
+  tctx.stroke();
+
+  tctx.fillStyle = 'rgba(255,255,255,.10)';
+  tctx.fillRect(rx, ry, rectW, 6);
+  tctx.fillStyle = 'rgba(0,0,0,.14)';
+  tctx.fillRect(rx, ry + rectH - 6, rectW, 6);
+
+  tutLine(rx + rectW / 2, ry, rx + rectW / 2, ry + rectH, 'rgba(255,255,255,.16)', 1);
+  tutLine(rx, ry + rectH / 2, rx + rectW, ry + rectH / 2, 'rgba(255,255,255,.16)', 1);
+}
+
+function drawTutorialMeasurementsTopRight(extraRows=[]){
+  const W = tutorialCanvas.clientWidth;
+  const pad = 24;
+  const labelW = 205;
+  const x = Math.max(pad, W - labelW - pad);
+  const rows = extraRows.length ? extraRows : [
+    { title:'Diameter', value:r2(model.diameter) + ' studs', color:COLORS.diameter },
+    { title:'Radius', value:r2(model.diameter / 2) + ' studs', color:COLORS.radius },
+    { title:'Section Width', value:r2(model.width) + ' studs', color:COLORS.hover },
+    { title:'Angle / Rotation', value:r2(model.angle) + '°', color:COLORS.angle },
+  ];
+
+  rows.forEach((row, i) => {
+    tutLabel(row.title, row.value, x, pad + i * 60, row.color, labelW);
+  });
+}
+
+function drawBlockMeasurements(rx, ry, rectW, rectH, layout){
+  // Dimension guide lines stay next to the block,
+  // while the measurement labels stay fixed in the top-right.
+  // Angle / rotation guide is ONLY shown on STEP SEVEN.
+  const cx = rx + rectW / 2;
+  const cy = ry + rectH / 2;
+
+  // Section width line across the top edge.
+  const widthY = ry - 18;
+  tutArrowLine(rx, widthY, rx + rectW, widthY, COLORS.hover);
+
+  // Diameter line along the full height of the block.
+  const diameterX = rx + rectW + 28;
+  tutArrowLine(diameterX, ry, diameterX, ry + rectH, COLORS.diameter);
+
+  // Radius line from center to the outside edge.
+  tutArrowLine(cx, cy, cx, ry, COLORS.radius);
+
+  drawTutorialMeasurementsTopRight();
+}
+
+function drawFootprintSlide(){
+  drawTutorialGrid();
+  const layout = getTutorialBlockLayout(1);
+  const rx = layout.groupX;
+  const ry = layout.ry;
+  drawSharpBlock(rx, ry, layout.rectW, layout.rectH, COLORS.blue);
+  drawBlockMeasurements(rx, ry, layout.rectW, layout.rectH, layout);
+}
+
+function drawCloneSlide(){
+  drawTutorialGrid();
+  const layout = getTutorialBlockLayout(2);
+  const mainX = layout.blueX;
+  const cloneX = mainX - layout.rectW - layout.gap;
+  const ry = layout.ry;
+
+  // The cloned block sits on the left and is highlighted green.
+  drawSharpBlock(cloneX, ry, layout.rectW, layout.rectH, '#22c55e');
+  drawSharpBlock(mainX, ry, layout.rectW, layout.rectH, COLORS.blue);
+  drawBlockMeasurements(mainX, ry, layout.rectW, layout.rectH, layout);
+}
+
+function drawMoveCloneSlide(){
+  drawTutorialGrid();
+  const layout = getTutorialBlockLayout(1);
+  const mainX = layout.blueX;
+  const ry = layout.ry;
+
+  // The cloned green block has been moved directly over the original blue block position.
+  drawSharpBlock(mainX, ry, layout.rectW, layout.rectH, COLORS.blue);
+  tctx.globalAlpha = 0.88;
+  drawSharpBlock(mainX, ry, layout.rectW, layout.rectH, '#22c55e');
+  tctx.globalAlpha = 1;
+  drawBlockMeasurements(mainX, ry, layout.rectW, layout.rectH, layout);
+}
+
+
+function drawScaleThicknessSlide(){
+  drawTutorialGrid();
+  const layout = getTutorialBlockLayout(1);
+  const mainX = layout.blueX;
+  const ry = layout.ry;
+  const thinH = Math.max(8, layout.rectW * 0.10);
+
+  // Blue is at the TOP
+  drawSharpBlock(mainX, ry, layout.rectW, thinH, COLORS.blue);
+
+  // Green is at the BOTTOM
+  tctx.globalAlpha = 0.88;
+  drawSharpBlock(mainX, ry + layout.rectH - thinH, layout.rectW, thinH, '#22c55e');
+  tctx.globalAlpha = 1;
+
+  drawBlockMeasurements(mainX, ry, layout.rectW, layout.rectH, layout);
+}
+
+function drawThinPair(x, ry, rectW, rectH, thinH){
+  // Blue top section
+  drawSharpBlock(x, ry, rectW, thinH, COLORS.blue);
+
+  // Green bottom section
+  tctx.globalAlpha = 0.88;
+  drawSharpBlock(x, ry + rectH - thinH, rectW, thinH, '#22c55e');
+  tctx.globalAlpha = 1;
+}
+
+function drawCloneBothSectionsSlide(){
+  drawTutorialGrid();
+  const layout = getTutorialBlockLayout(2);
+  const mainX = layout.blueX;
+  const cloneX = mainX - layout.rectW - layout.gap;
+  const ry = layout.ry;
+  const thinH = Math.max(8, layout.rectW * 0.10);
+
+  // Clone the selected sections to the left.
+  // The cloned pair is shown entirely in green.
+  drawGreenThinPair(cloneX, ry, layout.rectW, layout.rectH, thinH);
+
+  // Original pair remains blue on top / green on bottom.
+  drawThinPair(mainX, ry, layout.rectW, layout.rectH, thinH);
+
+  drawBlockMeasurements(mainX, ry, layout.rectW, layout.rectH, layout);
+}
+
+function drawGreenThinPair(x, ry, rectW, rectH, thinH){
+  // Overlapping cloned sections are both green.
+  drawSharpBlock(x, ry, rectW, thinH, '#22c55e');
+  drawSharpBlock(x, ry + rectH - thinH, rectW, thinH, '#22c55e');
+}
+
+function drawMoveClonedSectionsSlide(){
+  drawTutorialGrid();
+  const layout = getTutorialBlockLayout(1);
+  const mainX = layout.blueX;
+  const ry = layout.ry;
+  const thinH = Math.max(8, layout.rectW * 0.10);
+
+  // Same as STEP THREE, but both cloned thin sections are moved over the originals.
+  // Since they overlap the original sections, both visible blocks are green.
+  drawGreenThinPair(mainX, ry, layout.rectW, layout.rectH, thinH);
+
+  drawBlockMeasurements(mainX, ry, layout.rectW, layout.rectH, layout);
+}
+
+function drawTangentSectionPair(cx, cy, angleRad, partR, partW, thinH, topColor, bottomColor, radialInset=0){
+  tctx.save();
+  tctx.translate(cx, cy);
+  tctx.rotate(angleRad);
+
+  // Keep both pairs on the same tangent path, but draw them slightly closer
+  // to the centre so the red guide circle stays visible and does not touch them.
+  const visualR = partR - radialInset;
+
+  // Top section: outer face is inset from the red guide circle, thickness extends inward.
+  drawSharpBlock(-partW / 2, -visualR, partW, thinH, topColor);
+
+  // Bottom section: outer face is inset from the red guide circle, thickness extends inward.
+  tctx.globalAlpha = 0.88;
+  drawSharpBlock(-partW / 2, visualR - thinH, partW, thinH, bottomColor);
+  tctx.globalAlpha = 1;
+
+  tctx.restore();
+}
+
+function drawRotateClonedSectionsSlide(){
+  drawTutorialGrid();
+
+  const W = tutorialCanvas.clientWidth;
+  const H = tutorialCanvas.clientHeight;
+
+  const angleRad = rad(TUTORIAL_STATIC_ANGLE);
+  const labelW = 205;
+  const labelSafeRight = labelW + 56;
+
+  // Use one shared visual centre for the build preview.
+  const usableW = W - labelSafeRight;
+  const cx = usableW / 2 + 92;
+  const cy = H / 2;
+
+  // Same section width as every other tutorial step.
+  // The value is intentionally fixed, then the radius is calculated from it.
+  const partW = TUTORIAL_BLOCK_WIDTH;
+  const thinH = Math.max(8, partW * 0.10);
+
+  // Correct tangent radius for the fixed visual width and current rotation angle.
+  // This is what makes the outer faces meet instead of leaving gaps or crossing badly.
+  const partR = (partW / 2) / Math.tan(angleRad / 2);
+
+  // Red guide circle now matches the actual tangent path used by the blocks.
+  const guideR = partR;
+
+  tctx.strokeStyle = COLORS.angle;
+  tctx.lineWidth = 4;
+  tctx.beginPath();
+  tctx.arc(cx, cy, guideR, 0, Math.PI * 2);
+  tctx.stroke();
+
+  // Red guide dots at the original top and bottom tangent points.
+  tctx.fillStyle = COLORS.angle;
+  tctx.beginPath();
+  tctx.arc(cx, cy - guideR, 7, 0, Math.PI * 2);
+  tctx.fill();
+  tctx.beginPath();
+  tctx.arc(cx, cy + guideR, 7, 0, Math.PI * 2);
+  tctx.fill();
+
+  // Pull the STEP SEVEN parts inward visually while leaving the red guide circle unchanged.
+  const partInset = thinH + 6;
+  const visualR = partR - partInset;
+
+  // Since the blocks are now drawn closer to the centre, they need a slightly
+  // larger visual rotation to make the corners meet cleanly. This does NOT
+  // change the red guide circle or the calculator angle; it only fixes the
+  // tutorial drawing so it looks like the parts line up in-game.
+  const visualAngleRad = 2 * Math.atan((partW / 2) / visualR);
+
+  // Original selected pair: blue top, green bottom.
+  drawTangentSectionPair(cx, cy, 0, partR, partW, thinH, COLORS.blue, '#22c55e', partInset);
+
+  // Rotated clone: visually rotated enough for the inset corners to meet.
+  drawTangentSectionPair(cx, cy, visualAngleRad, partR, partW, thinH, '#22c55e', '#22c55e', partInset);
+
+  // Rotation arc only on STEP SEVEN.
+  const arcR = guideR + thinH + 34;
+  tctx.strokeStyle = COLORS.angle;
+  tctx.lineWidth = 3;
+  tctx.beginPath();
+  tctx.arc(cx, cy, arcR, -Math.PI / 2, -Math.PI / 2 + visualAngleRad);
+  tctx.stroke();
+
+  const arcEndX = cx + Math.cos(-Math.PI / 2 + visualAngleRad) * arcR;
+  const arcEndY = cy + Math.sin(-Math.PI / 2 + visualAngleRad) * arcR;
+  tutArrowHead(arcEndX, arcEndY, -Math.PI / 2 + visualAngleRad, COLORS.angle);
+
+  // STEP SEVEN only shows the rotate amount measurement.
+  drawTutorialMeasurementsTopRight([
+    { title:'Rotate Amount', value:r2(model.angle) + '°', color:COLORS.angle }
+  ]);
+}
+
+function drawCompleteCircleSlide(){
+  drawTutorialGrid();
+
+  const W = tutorialCanvas.clientWidth;
+  const H = tutorialCanvas.clientHeight;
+
+  // STEP EIGHT: finished circle only. No dimension arrows, labels, dots, or guides.
+  // It stays visually locked to the default tutorial angle.
+  const sections = Math.max(3, Math.round(360 / TUTORIAL_STATIC_ANGLE));
+  const stepRad = Math.PI * 2 / sections;
+  const thinH = Math.max(8, TUTORIAL_BLOCK_WIDTH * 0.10);
+
+  const captionSafeLeft = 410;
+  const availableLeft = captionSafeLeft;
+  const availableRight = W - 34;
+  const availableTop = 34;
+  const availableBottom = H - 34;
+  const cx = (availableLeft + availableRight) / 2;
+  const cy = (availableTop + availableBottom) / 2;
+
+  // Pick the radius first so the finished circle fits in the window.
+  // Then calculate the exact tangent block length for that radius.
+  // This makes every block endpoint land on the same corner as the next block.
+  const tangentR = Math.min((availableRight - availableLeft), (availableBottom - availableTop)) * 0.43;
+  const partW = (2 * tangentR * Math.tan(Math.PI / sections)) + 1.2;
+
+  for(let i = 0; i < sections; i++){
+    const a = i * stepRad;
+    tctx.save();
+    tctx.translate(cx, cy);
+    tctx.rotate(a);
+
+    const color = i % 2 ? '#22c55e' : COLORS.blue;
+    drawSharpBlock(-partW / 2, -tangentR, partW, thinH, color);
+
+    tctx.restore();
+  }
+}
+
+function openBuildModal(){
+  buildModalBackdrop.classList.add('open');
+  buildModalBackdrop.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  requestAnimationFrame(resizeTutorialCanvas);
+}
+
+function closeBuildModal(){
+  buildModalBackdrop.classList.remove('open');
+  buildModalBackdrop.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+}
+
+buildTutBtn.addEventListener('click', openBuildModal);
+buildModalClose.addEventListener('click', closeBuildModal);
+slidePrev.addEventListener('click', () => { currentSlide--; renderTutorialSlide(); });
+slideNext.addEventListener('click', () => { currentSlide++; renderTutorialSlide(); });
+buildModalBackdrop.addEventListener('click', e => {
+  if(e.target === buildModalBackdrop) closeBuildModal();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && buildModalBackdrop.classList.contains('open')) closeBuildModal();
+  if(buildModalBackdrop.classList.contains('open') && e.key === 'ArrowLeft'){ currentSlide--; renderTutorialSlide(); }
+  if(buildModalBackdrop.classList.contains('open') && e.key === 'ArrowRight'){ currentSlide++; renderTutorialSlide(); }
+});
+
+const COLORS = {
+  grid:'rgba(45,52,72,.35)',
+  axis:'#30384f',
+  blue:'#2299ee',
+  blue2:'#176fc0',
+  hover:'#00ffae',
+  selected:'#ffb703',
+  radius:'#ffd166',
+  diameter:'#8b5cf6',
+  angle:'#ff7b7b',
+  labelBg:'rgba(8,11,18,.88)',
+  labelStroke:'rgba(255,255,255,.13)',
+  muted:'#9aa4bd'
+};
+
+let lastEdited = 'width';
+let hoverIndex = -1;
+let selectedIndex = -1;
+let paths = [];
+let model = { angle:15, diameter:15.19, width:2 };
+let raf = 0;
+
+function r2(n){ return (Math.round(Number(n) * 100) / 100).toFixed(2); }
+function rad(d){ return d * Math.PI / 180; }
+function getVal(el){ return parseFloat(String(el.value).replace(',', '.')) || 0; }
+function setVal(el, v){ el.value = r2(v); }
+function clamp(n,min,max){ return Math.min(max, Math.max(min, n)); }
+function clampAngleValue(v){ return clamp(v, 0.01, 90); }
+function widthFromDiameter(d,a){ return d * Math.tan(rad(a / 2)); }
+function diameterFromWidth(w,a){ return w / Math.tan(rad(a / 2)); }
+
+function schedule(){
+  if(raf) cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { raf = 0; updateMath(); });
+}
+
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(rect.width * devicePixelRatio));
+  canvas.height = Math.max(1, Math.round(rect.height * devicePixelRatio));
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  schedule();
+}
+window.addEventListener('resize', () => { resize(); resizeTutorialCanvas(); });
+
+function line(x1,y1,x2,y2,c=COLORS.axis,w=1){
+  ctx.strokeStyle = c; ctx.lineWidth = w;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+}
+
+function label(title,value,x,y,color=COLORS.radius,w=190){
+  ctx.fillStyle = COLORS.labelBg;
+  ctx.strokeStyle = COLORS.labelStroke;
+  ctx.lineWidth = 1;
+  roundRect(x,y,w,50,10);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = '12px Arial';
+  ctx.fillText(title, x+12, y+18);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 18px Arial';
+  ctx.fillText(value, x+12, y+40);
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function arrowHead(x,y,a,c){
+  const s = 8;
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x - Math.cos(a - .45) * s, y - Math.sin(a - .45) * s);
+  ctx.lineTo(x - Math.cos(a + .45) * s, y - Math.sin(a + .45) * s);
+  ctx.closePath();
+  ctx.fillStyle = c;
+  ctx.fill();
+}
+
+function arrowLine(x1,y1,x2,y2,color){
+  line(x1,y1,x2,y2,color,2.5);
+  const a = Math.atan2(y2-y1, x2-x1);
+  arrowHead(x1,y1,a+Math.PI,color);
+  arrowHead(x2,y2,a,color);
+}
+
+function updateMath(){
+  let angle = clampAngleValue(getVal(angleInput));
+  if (getVal(angleInput) !== angle) setVal(angleInput, angle);
+  let diameter = getVal(diameterInput);
+  let width = getVal(widthInput);
+  if(angle <= 0 || angle > 90) return;
+
+  if(lastEdited === 'diameter' || lastEdited === 'angle-from-diameter'){
+    width = widthFromDiameter(diameter, angle);
+    setVal(widthInput, width);
+  } else {
+    diameter = diameterFromWidth(width, angle);
+    setVal(diameterInput, diameter);
+  }
+
+  model = { angle, diameter, width };
+  draw();
+  if(buildModalBackdrop.classList.contains('open')) renderTutorialSlide();
+}
+function getCircleLayout(){
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  const cx = W / 2;
+  const cy = H / 2 + 15;
+  const maxR = Math.min(W - 300, H - 170) * 0.42;
+  const outerR = Math.max(120, Math.min(300, maxR));
+  const innerR = outerR * 0.73;
+  return { W, H, cx, cy, outerR, innerR };
+}
+
+function draw(){
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  const { angle, diameter, width } = model;
+  ctx.clearRect(0,0,W,H);
+  paths = [];
+
+  const labelW = 215;
+  const labelX = Math.max(20, W - labelW - 24);
+  const circle = getCircleLayout();
+  const cx = circle.cx;
+  const cy = circle.cy;
+  const outerR = circle.outerR;
+  const innerR = circle.innerR;
+  const sections = 360 / angle;
+
+  sectionsOut.textContent = r2(sections);
+  radiusOut.textContent = r2(diameter / 2);
+
+  for(let x=0; x<W; x+=28) line(x,0,x,H,COLORS.grid,1);
+  for(let y=0; y<H; y+=28) line(0,y,W,y,COLORS.grid,1);
+
+  line(cx-outerR-40, cy, cx+outerR+40, cy, COLORS.axis, 1);
+  line(cx, cy-outerR-40, cx, cy+outerR+40, COLORS.axis, 1);
+
+  for(let i=0; i<Math.floor(sections); i++){
+    const a1 = rad(i * angle - 90);
+    const a2 = rad((i + 1) * angle - 90);
+    const p = new Path2D();
+    p.moveTo(cx + Math.cos(a1)*innerR, cy + Math.sin(a1)*innerR);
+    p.lineTo(cx + Math.cos(a1)*outerR, cy + Math.sin(a1)*outerR);
+    p.lineTo(cx + Math.cos(a2)*outerR, cy + Math.sin(a2)*outerR);
+    p.lineTo(cx + Math.cos(a2)*innerR, cy + Math.sin(a2)*innerR);
+    p.closePath();
+    paths.push(p);
+
+    ctx.fillStyle = i === selectedIndex ? COLORS.selected : i === hoverIndex ? COLORS.hover : i % 2 ? COLORS.blue2 : COLORS.blue;
+    ctx.fill(p);
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    ctx.lineWidth = 1;
+    ctx.stroke(p);
+  }
+
+  ctx.fillStyle = '#ff4d4d';
+  ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
+
+  // Diameter measurement line and matching top-right label
+  arrowLine(cx-outerR, cy+outerR+42, cx+outerR, cy+outerR+42, COLORS.diameter);
+  label('Diameter', r2(diameter) + ' studs', labelX, 24, COLORS.diameter, labelW-25);
+
+  // Radius measurement line and matching top-right label
+  arrowLine(cx, cy, cx+outerR, cy, COLORS.radius);
+  label('Radius', r2(diameter/2) + ' studs', labelX, 84, COLORS.radius, labelW-25);
+
+  // Section width line on first section
+  const a1 = rad(-90);
+  const a2 = rad(angle - 90);
+  const x1 = cx + Math.cos(a1)*outerR;
+  const y1 = cy + Math.sin(a1)*outerR;
+  const x2 = cx + Math.cos(a2)*outerR;
+  const y2 = cy + Math.sin(a2)*outerR;
+  line(x1,y1,x2,y2,COLORS.hover,4);
+  label('Section Width', r2(width) + ' studs', labelX, 144, COLORS.hover, labelW-25);
+
+  // Angle guide
+  ctx.strokeStyle = COLORS.angle;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 70, rad(-90), rad(angle-90));
+  ctx.stroke();
+  line(cx,cy,cx+Math.cos(a1)*95,cy+Math.sin(a1)*95,COLORS.angle,2);
+  line(cx,cy,cx+Math.cos(a2)*95,cy+Math.sin(a2)*95,COLORS.angle,2);
+  label('Angle / Rotation', r2(angle) + '°', labelX, 204, COLORS.angle, labelW-25);
+
+  if(selectedIndex >= 0){
+    const sectionAngle = (selectedIndex + 1) * angle;
+    label('Selected Section', '#' + (selectedIndex + 1), 24, 24, COLORS.selected, 190);
+    label('Section Angle', r2(sectionAngle) + '°', 24, 84, COLORS.selected, 190);
+  }
+}
+
+function getMouse(e){
+  const b = canvas.getBoundingClientRect();
+  return { x: e.clientX - b.left, y: e.clientY - b.top };
+}
+
+function hitTest(x,y){
+  const { cx, cy, outerR, innerR } = getCircleLayout();
+  const dx = x - cx;
+  const dy = y - cy;
+  const dist = Math.hypot(dx, dy);
+  if(dist < innerR || dist > outerR) return -1;
+
+  const total = Math.floor(360 / model.angle);
+  if(total <= 0) return -1;
+
+  // Match the exact same angle boundaries used when drawing each section.
+  let deg = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+  let idx = Math.floor((deg + 0.000001) / model.angle);
+  if(idx >= total) idx = total - 1;
+
+  // Keep selection responsive and matched to the drawn radial section math.
+  // Avoid ctx.isPointInPath here because canvas/device-pixel scaling can make it reject valid clicks.
+  return idx >= 0 && idx < total ? idx : -1;
+}
+
+canvas.addEventListener('mousemove', e => {
+  const m = getMouse(e);
+  const hit = hitTest(m.x, m.y);
+  if(hit !== hoverIndex){ hoverIndex = hit; draw(); }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if(hoverIndex !== -1){ hoverIndex = -1; draw(); }
+});
+
+canvas.addEventListener('click', e => {
+  const m = getMouse(e);
+  selectedIndex = hitTest(m.x, m.y);
+  selectedOut.textContent = selectedIndex >= 0 ? '#' + (selectedIndex + 1) : 'None';
+  draw();
+});
+
+angleInput.addEventListener('input', () => {
+  const clamped = clampAngleValue(getVal(angleInput));
+  if(getVal(angleInput) !== clamped) setVal(angleInput, clamped);
+  lastEdited = lastEdited === 'diameter' ? 'angle-from-diameter' : 'angle-from-width';
+  selectedIndex = -1;
+  selectedOut.textContent = 'None';
+  schedule();
+});
+diameterInput.addEventListener('input', () => {
+  lastEdited = 'diameter';
+  schedule();
+});
+widthInput.addEventListener('input', () => {
+  lastEdited = 'width';
+  schedule();
+});
+
+document.querySelectorAll('[data-bump]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const [id, amountRaw] = btn.dataset.bump.split(':');
+    const el = document.getElementById(id);
+    const next = getVal(el) + parseFloat(amountRaw);
+    el.value = id === 'angle' ? r2(clampAngleValue(next)) : r2(next);
+    el.dispatchEvent(new Event('input', { bubbles:true }));
+  });
+});
+
+resize();
+</script>
+</body>
+</html>
